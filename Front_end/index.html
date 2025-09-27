@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Expense Splitter — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#7c3aed;--glass: rgba(255,255,255,0.03)}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Arial;margin:0}
+    body{background:linear-gradient(180deg,#071025 0%, #07112a 100%);color:#e6eef8;min-height:100vh}
+    .app{display:flex;gap:18px;padding:22px;max-width:1200px;margin:20px auto}
+
+    /* Sidebar */
+    .sidebar{width:280px;background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(45deg,var(--accent),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:16px}
+    .muted{color:var(--muted);font-size:13px}
+
+    .groups{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+    .group-item{padding:10px;border-radius:8px;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.02)}
+    .group-item.active{background:linear-gradient(90deg, rgba(124,58,237,0.14), rgba(79,70,229,0.06));border:1px solid rgba(124,58,237,0.18)}
+    .create-form{margin-top:12px;display:flex;gap:8px}
+    .create-form input{flex:1;padding:8px;border-radius:8px;border:none;background:var(--glass);color:inherit}
+    .btn{background:var(--accent);border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+    /* Main */
+    .main{flex:1;display:flex;flex-direction:column;gap:16px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+    .row{display:flex;gap:16px}
+    .col{flex:1}
+
+    .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .small{font-size:13px;color:var(--muted)}
+
+    /* members list */
+    .members{display:flex;gap:10px;flex-wrap:wrap}
+    .member{background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+
+    /* forms */
+    form{display:flex;flex-direction:column;gap:8px}
+    label{font-size:13px;color:var(--muted)}
+    input[type=text], input[type=number], select, textarea{padding:8px;border-radius:8px;border:none;background:var(--glass);color:inherit}
+    .form-row{display:flex;gap:10px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
+    .muted-small{color:var(--muted);font-size:12px}
+
+    .tx{background:linear-gradient(90deg,#05233b, #07122a);padding:8px;border-radius:8px}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+    @media(max-width:900px){.app{flex-direction:column;padding:12px}.sidebar{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar card">
+      <div class="brand">
+        <div class="logo">ES</div>
+        <div>
+          <h1>Expense Splitter</h1>
+          <div class="muted">Simple DRF + JS frontend</div>
+        </div>
+      </div>
+
+      <div class="section-title"><strong>Groups</strong><button id="refreshGroups" class="btn" style="padding:6px 8px;font-size:13px">Refresh</button></div>
+      <div id="groups" class="groups">
+        <!-- group items injected here -->
+      </div>
+
+      <div style="margin-top:12px">
+        <form id="createGroupForm" class="create-form">
+          <input id="groupName" placeholder="New group name" required />
+          <button class="btn">Create</button>
+        </form>
+      </div>
+
+      <div style="margin-top:12px" class="muted-small">Tip: create a group, add members, then add expenses. Use Overview & Settle buttons on the selected group.</div>
+    </aside>
+
+    <main class="main">
+      <div id="mainHeader" class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h2 id="groupTitle">Select a group</h2>
+            <div id="groupDesc" class="muted">Group details will appear here</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="overviewBtn" class="btn">Overview</button>
+            <button id="settleBtn" class="btn">Settle</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col card">
+          <div class="section-title"><strong>Members</strong><span class="small">Add / view members</span></div>
+          <div id="members" class="members"></div>
+
+          <form id="addMemberForm" style="margin-top:12px">
+            <label>Name</label>
+            <input id="memberName" placeholder="Member name" required />
+            <label>Email (optional)</label>
+            <input id="memberEmail" placeholder="email@example.com" />
+            <button class="btn" style="width:160px;margin-top:6px">Add Member</button>
+          </form>
+        </div>
+
+        <div class="col card">
+          <div class="section-title"><strong>Add Expense</strong><span class="small">Equal or custom split</span></div>
+          <form id="addExpenseForm">
+            <label>Title</label>
+            <input id="expenseTitle" placeholder="Dinner at X" required />
+            <div class="form-row">
+              <div style="flex:1">
+                <label>Amount (₹)</label>
+                <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="1200" required />
+              </div>
+              <div style="width:160px">
+                <label>Paid by</label>
+                <select id="paidBy"></select>
+              </div>
+            </div>
+
+            <label>Split type</label>
+            <select id="splitType">
+              <option value="equal">Equal split</option>
+              <option value="custom">Custom amounts</option>
+            </select>
+
+            <div id="customShares" style="display:none;margin-top:8px">
+              <div class="muted-small">Enter exact amount each member owes (must sum to total)</div>
+              <div id="sharesContainer" style="margin-top:8px"></div>
+            </div>
+
+            <label>Note (optional)</label>
+            <textarea id="expenseNote" rows="2" placeholder="Dinner, taxi..." style="resize:none"></textarea>
+
+            <button class="btn" style="width:160px;margin-top:8px">Add Expense</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col card">
+          <div class="section-title"><strong>Expense History</strong><span class="small">All expenses for the group</span></div>
+          <div style="overflow:auto;max-height:300px">
+            <table id="expenseTable">
+              <thead><tr><th>Title</th><th>Amount</th><th>Paid by</th><th>Split among</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="col card">
+          <div class="section-title"><strong>Overview</strong><span class="small">Paid vs Owed</span></div>
+          <canvas id="barChart" style="max-height:200px"></canvas>
+          <canvas id="pieChart" style="max-height:200px;margin-top:12px"></canvas>
+          <div id="settleTx" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      
+    </main>
+  </div>
+
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // ========== CONFIG ===========
+    const API_BASE = 'http://127.0.0.1:8000/api'; // change if your backend runs elsewhere #192.168.1.7
+
+    // state
+    let groups = [];
+    let selectedGroup = null;
+    let members = [];
+    let barChart = null, pieChart = null;
+
+    // Helpers
+    function el(id){ return document.getElementById(id); }
+    function fmt(n){ return Number(n).toFixed(2); }
+
+    // Fetch groups
+    async function fetchGroups(){
+      try{
+        const res = await fetch(`${API_BASE}/groups/`);
+        groups = await res.json();
+        renderGroups();
+      }catch(e){ alert('Failed to load groups. Is backend running and CORS enabled?'); console.error(e); }
+    }
+
+    function renderGroups(){
+      const container = el('groups'); container.innerHTML='';
+      groups.forEach(g => {
+        const d = document.createElement('div'); d.className='group-item'+(selectedGroup && selectedGroup.id===g.id? ' active':'');
+        d.textContent = g.name;
+        d.onclick = ()=>{ selectGroup(g); };
+        container.appendChild(d);
+      });
+    }
+
+    // Select a group
+    async function selectGroup(g){
+      selectedGroup = g; el('groupTitle').textContent = g.name; el('groupDesc').textContent = g.description || '';
+      renderGroups();
+      await loadGroupDetails();
+    }
+
+    // Load members, expenses, overview
+    async function loadGroupDetails(){
+      if(!selectedGroup) return;
+      await Promise.all([fetchMembers(), fetchExpenses(), fetchOverview()]);
+    }
+
+    // MEMBERS
+    async function fetchMembers(){
+      const res = await fetch(`${API_BASE}/members/?group=${selectedGroup.id}`);
+      members = await res.json();
+      renderMembers();
+      fillPaidByOptions();
+    }
+
+    function renderMembers(){
+      const c = el('members'); c.innerHTML='';
+      members.forEach(m => {
+        const md = document.createElement('div'); md.className='member'; md.textContent = m.name + (m.email? ` — ${m.email}`:'');
+        c.appendChild(md);
+      });
+    }
+
+    async function addMember(e){
+      e.preventDefault();
+      const name = el('memberName').value.trim();
+      const email = el('memberEmail').value.trim();
+      if(!name || !selectedGroup){ alert('Select group & enter member name'); return; }
+      const payload = { group: selectedGroup.id, name, email };
+      const res = await fetch(`${API_BASE}/members/`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if(!res.ok){ alert('Failed to add member'); return; }
+      el('memberName').value=''; el('memberEmail').value='';
+      await fetchMembers();
+    }
+
+    function fillPaidByOptions(){
+      const sel = el('paidBy'); sel.innerHTML='';
+      members.forEach(m=>{
+        const opt = document.createElement('option'); opt.value=m.id; opt.textContent=m.name; sel.appendChild(opt);
+      });
+      rebuildCustomShares();
+    }
+
+    // EXPENSES
+    async function fetchExpenses(){
+      const res = await fetch(`${API_BASE}/expenses/?group=${selectedGroup.id}`);
+      const list = await res.json();
+      renderExpenses(list);
+    }
+
+    function renderExpenses(list){
+      const tb = document.querySelector('#expenseTable tbody'); tb.innerHTML='';
+      list.forEach(exp=>{
+        const tr = document.createElement('tr');
+        const shareNames = exp.shares.map(s=>{ const mem = members.find(m=>m.id===s.member); return mem?mem.name:('ID:'+s.member); }).join(', ');
+        tr.innerHTML = `<td>${exp.title}<div class="muted-small">${new Date(exp.created_at).toLocaleString()}</div></td><td>₹${fmt(exp.amount)}</td><td>${exp.paid_by}</td><td>${shareNames}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    async function addExpense(e){
+      e.preventDefault();
+      if(!selectedGroup){ alert('Select group first'); return; }
+      const title = el('expenseTitle').value.trim();
+      const amount = Number(el('expenseAmount').value);
+      const paid_by = Number(el('paidBy').value);
+      const note = el('expenseNote').value.trim();
+      const splitType = el('splitType').value;
+      if(!title || !amount || !paid_by){ alert('Fill title, amount and paid by'); return; }
+
+      const payload = { group:selectedGroup.id, title, amount, paid_by, note, is_custom_split: splitType === 'custom' };
+      if(splitType === 'custom'){
+        // gather custom shares
+        const shares = [];
+        members.forEach(m=>{
+          const input = document.querySelector(`#share_${m.id}`);
+          if(input){
+            const value = Number(input.value) || 0;
+            shares.push({member: m.id, share_amount: value});
+          }
+        });
+        payload.shares = shares;
+      }
+
+      const res = await fetch(`${API_BASE}/expenses/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!res.ok){
+        const txt = await res.text();
+        alert('Failed to add expense\n' + txt);
+        return;
+      }
+      el('expenseTitle').value=''; el('expenseAmount').value=''; el('expenseNote').value='';
+      await Promise.all([fetchExpenses(), fetchOverview()]);
+    }
+
+    // CUSTOM SHARES UI
+    function rebuildCustomShares(){
+      const container = el('sharesContainer'); container.innerHTML='';
+      members.forEach(m=>{
+        const row = document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.marginBottom='6px';
+        const name = document.createElement('div'); name.style.width='140px'; name.textContent = m.name;
+        const inp = document.createElement('input'); inp.type='number'; inp.id = `share_${m.id}`; inp.placeholder='0'; inp.step='0.01'; inp.style.flex='1';
+        row.appendChild(name); row.appendChild(inp);
+        container.appendChild(row);
+      });
+    }
+
+    // OVERVIEW & CHARTS
+    async function fetchOverview(){
+      const res = await fetch(`${API_BASE}/groups/${selectedGroup.id}/overview/`);
+      const data = await res.json();
+      renderOverview(data);
+    }
+
+    function renderOverview(data){
+      // prepare arrays
+      const labels = data.members.map(m=>m.name);
+      const paidArr = data.members.map(m=>m.paid);
+      const owedArr = data.members.map(m=>m.owed);
+
+      // bar chart: paid
+      const ctx = document.getElementById('barChart').getContext('2d');
+      if(barChart) barChart.destroy();
+      barChart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{label:'Paid (₹)', data:paidArr}] }, options:{responsive:true,plugins:{legend:{display:false}}}});
+
+      // pie chart: owed (who owes more)
+      const ctx2 = document.getElementById('pieChart').getContext('2d');
+      if(pieChart) pieChart.destroy();
+      pieChart = new Chart(ctx2, { type:'pie', data:{ labels, datasets:[{label:'Owed (₹)', data:owedArr}] }, options:{responsive:true}});
+
+      // settled listing hidden here until user requests settle
+      el('settleTx').innerHTML='';
+    }
+
+    async function doSettle(){
+      const res = await fetch(`${API_BASE}/groups/${selectedGroup.id}/settle/`);
+      const data = await res.json();
+      const tx = data.transactions || [];
+      const c = el('settleTx'); c.innerHTML='';
+      if(tx.length===0){ c.innerHTML='<div class="tx">No transactions needed — everyone is settled.</div>'; return; }
+      tx.forEach(t=>{
+        const from = members.find(m=>m.id===t.from)?.name || ('ID:'+t.from);
+        const to = members.find(m=>m.id===t.to)?.name || ('ID:'+t.to);
+        const div = document.createElement('div'); div.className='tx'; div.style.marginBottom='6px';
+        div.innerHTML = `<strong>${from}</strong> pays <strong>${to}</strong> ₹${fmt(t.amount)}`;
+        c.appendChild(div);
+      });
+    }
+
+    // UI events
+    document.getElementById('createGroupForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const name = el('groupName').value.trim(); if(!name) return; 
+      const res = await fetch(`${API_BASE}/groups/`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+      if(!res.ok){ alert('Failed to create group'); return; }
+      el('groupName').value=''; await fetchGroups();
+    });
+
+    document.getElementById('refreshGroups').addEventListener('click', ()=>fetchGroups());
+    document.getElementById('addMemberForm').addEventListener('submit', addMember);
+    document.getElementById('addExpenseForm').addEventListener('submit', addExpense);
+    el('splitType').addEventListener('change', (e)=>{ el('customShares').style.display = e.target.value==='custom'? 'block':'none'; });
+    el('overviewBtn').addEventListener('click', ()=>{ if(selectedGroup) fetchOverview(); else alert('Select a group') });
+    el('settleBtn').addEventListener('click', ()=>{ if(selectedGroup) doSettle(); else alert('Select a group') });
+
+    // initial load
+    fetchGroups();
+  </script>
+</body>
+</html>
